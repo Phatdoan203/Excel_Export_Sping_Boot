@@ -1,0 +1,16 @@
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:latest
+    container_name: first_mssql_container
+    restart: always
+    ports:
+      - "1435:1433"
+    environment:
+      SA_PASSWORD: "123456"
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Express"
+    volumes:
+      - mssql_data:/var/opt/mssql
+
+volumes:
+  mssql_data:
