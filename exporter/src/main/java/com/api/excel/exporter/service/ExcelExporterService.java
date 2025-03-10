@@ -4,6 +4,7 @@ import com.api.excel.exporter.entity.Product;
 import com.api.excel.exporter.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
@@ -35,23 +36,32 @@ public class ExcelExporterService {
         }
 
         // Đọc toàn bộ template vào bộ nhớ và sử dụng nó trực tiếp
-        try (FileInputStream templateInputStream = new FileInputStream(templateFile);
-             XSSFWorkbook workbook = new XSSFWorkbook(templateInputStream)) {
+        try (FileInputStream fis = new FileInputStream(templateFile);
+             XSSFWorkbook xssfWorkbook = new XSSFWorkbook(fis);
+             SXSSFWorkbook workbook = new SXSSFWorkbook(xssfWorkbook, 1000);
+             ) {
 
-            Sheet sheet = workbook.getSheetAt(0);
+            fis.close(); // Đóng ngay sau khi đọc xong
+            workbook.setCompressTempFiles(true);
+
+
+            SXSSFSheet sheet =  workbook.getSheetAt(0);
+
+
+//            SXSSFSheet sheet = workbook.getSheetAt(0);
             int startRow = 15;
             int currentRow = startRow;
-            int pageSize = 100000; // Giảm kích thước trang để tránh sử dụng quá nhiều bộ nhớ
+            int pageSize = 5000; // Giảm kích thước trang để tránh sử dụng quá nhiều bộ nhớ
 
             // Cache styles để tối ưu hóa hiệu suất
             Map<Integer, CellStyle> columnStyles = new HashMap<>();
-            if (sheet.getRow(startRow - 1) != null) {
-                // Lấy style từ hàng trên cùng của dữ liệu (thường là hàng tiêu đề)
-                Row headerRow = sheet.getRow(startRow - 1);
-                for (Cell cell : headerRow) {
-                    columnStyles.put(cell.getColumnIndex(), cell.getCellStyle());
-                }
-            }
+//            if (sheet.getRow(startRow - 1) != null) {
+//                // Lấy style từ hàng trên cùng của dữ liệu (thường là hàng tiêu đề)
+//                Row headerRow = sheet.getRow(startRow - 1);
+//                for (Cell cell : headerRow) {
+//                    columnStyles.put(cell.getColumnIndex(), cell.getCellStyle());
+//                }
+//            }
 
             log.info("Starting Excel export with template: {}", templateFileName);
             long startTime = System.currentTimeMillis();
@@ -78,6 +88,10 @@ public class ExcelExporterService {
                 log.info("Processed page {} with {} products, current row: {}",
                         pageNum, productPage.getContent().size(), currentRow);
 
+                if (pageNum % 1000 == 0) {
+                    sheet.flushRows(1000);  // Xóa 100 hàng đầu tiên khỏi bộ nhớ
+                }
+
                 // Đánh dấu để GC thu hồi bộ nhớ
                 System.gc();
             }
@@ -90,6 +104,8 @@ public class ExcelExporterService {
             // Lưu workbook
             try (FileOutputStream outputStream = new FileOutputStream(outputPath)) {
                 workbook.write(outputStream);
+                workbook.dispose(); // Giải phóng bộ nhớ
+                outputStream.close();
                 outputStream.flush();
             }
 
