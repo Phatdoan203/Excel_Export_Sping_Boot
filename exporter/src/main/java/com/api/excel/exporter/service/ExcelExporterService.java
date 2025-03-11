@@ -47,21 +47,19 @@ public class ExcelExporterService {
 
             SXSSFSheet sheet =  workbook.getSheetAt(0);
 
-
-//            SXSSFSheet sheet = workbook.getSheetAt(0);
             int startRow = 15;
             int currentRow = startRow;
             int pageSize = 5000; // Giảm kích thước trang để tránh sử dụng quá nhiều bộ nhớ
 
             // Cache styles để tối ưu hóa hiệu suất
             Map<Integer, CellStyle> columnStyles = new HashMap<>();
-//            if (sheet.getRow(startRow - 1) != null) {
-//                // Lấy style từ hàng trên cùng của dữ liệu (thường là hàng tiêu đề)
-//                Row headerRow = sheet.getRow(startRow - 1);
-//                for (Cell cell : headerRow) {
-//                    columnStyles.put(cell.getColumnIndex(), cell.getCellStyle());
-//                }
-//            }
+            if (sheet.getRow(startRow - 1) != null) {
+                // Lấy style từ hàng trên cùng của dữ liệu (thường là hàng tiêu đề)
+                Row headerRow = sheet.getRow(startRow - 1);
+                for (Cell cell : headerRow) {
+                    columnStyles.put(cell.getColumnIndex(), cell.getCellStyle());
+                }
+            }
 
             log.info("Starting Excel export with template: {}", templateFileName);
             long startTime = System.currentTimeMillis();
@@ -93,13 +91,15 @@ public class ExcelExporterService {
                 }
 
                 // Đánh dấu để GC thu hồi bộ nhớ
-                System.gc();
+//                System.gc();
             }
 
             // Tự động điều chỉnh chiều rộng cột
+            sheet.trackAllColumnsForAutoSizing();
             for (int i = 1; i <= 6; i++) {
                 sheet.autoSizeColumn(i);
             }
+
 
             // Lưu workbook
             try (FileOutputStream outputStream = new FileOutputStream(outputPath)) {
